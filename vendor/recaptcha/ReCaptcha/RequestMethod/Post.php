@@ -76,8 +76,18 @@ class Post implements RequestMethod
                 'verify_peer' => true,
             ),
         );
-        $context = stream_context_create($options);
-        $response = file_get_contents($this->siteVerifyUrl, false, $context);
+        $curl = curl_init($this->siteVerifyUrl);
+        curl_setopt($curl, CURLOPT_POST, true);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $params->toQueryString());
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-type: application/x-www-form-urlencoded'));
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        // Additional options such as SSL verification can be configured here if required
+
+        $response = curl_exec($curl);
+        if (curl_errno($curl)) {
+            $response = false; // or handle error accordingly
+        }
+        curl_close($curl);
 
         if ($response !== false) {
             return $response;

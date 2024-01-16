@@ -3443,7 +3443,15 @@ class PHPMailer
             if (!static::fileIsAccessible($path)) {
                 throw new Exception($this->lang('file_open') . $path, self::STOP_CONTINUE);
             }
-            $file_buffer = file_get_contents($path);
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $path);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            $file_buffer = curl_exec($ch);
+            $curl_error = curl_error($ch);
+            curl_close($ch);
+            if ($file_buffer === false) {
+                throw new Exception($this->lang('file_access') . $path . ': ' . $curl_error, self::STOP_CONTINUE);
+            }
             if (false === $file_buffer) {
                 throw new Exception($this->lang('file_open') . $path, self::STOP_CONTINUE);
             }
@@ -4889,7 +4897,19 @@ class PHPMailer
         }
         $privKeyStr = !empty($this->DKIM_private_string) ?
             $this->DKIM_private_string :
-            file_get_contents($this->DKIM_private);
+            curl_init();
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $this->DKIM_private);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $privKeyStr = curl_exec($ch);
+        curl_close($ch);
+        if (false === $privKeyStr) {
+            if ($this->exceptions) {
+                throw new Exception($this->lang('file_open') . $this->DKIM_private);
+            }
+            return '';
+        }
         if ('' !== $this->DKIM_passphrase) {
             $privKey = openssl_pkey_get_private($privKeyStr, $this->DKIM_passphrase);
         } else {
